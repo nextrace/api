@@ -70,7 +70,7 @@ router.get('/', async (req, res) => {
 
 // upload image for event
 // TODO require auth
-router.get('/events/:eventId/uploadImage', async (req, res) => {
+router.post('/events/:eventId/uploadImage', async (req, res) => {
 	const bucket = storage.bucket('cdn.nextrace.cloud')
 
 	const opts = {
