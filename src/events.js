@@ -2,6 +2,7 @@ const router = require('express').Router()
 const { dbQuery } = require('./db.js')
 const { Storage } = require('@google-cloud/storage')
 const storage = new Storage()
+const fs  = require('fs')
 const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
@@ -70,7 +71,7 @@ router.get('/', async (req, res) => {
 
 // upload image for event
 // TODO require auth
-router.post('/:eventId/uploadImage', async (req, res) => {
+router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) => {
 	const bucket = storage.bucket('cdn.nextrace.cloud')
 
 	const opts = {
@@ -96,7 +97,7 @@ router.post('/:eventId/uploadImage', async (req, res) => {
 	const s2 = pipeline.clone().resize(560, 315).jpeg({ quality: 90 }).pipe(file2)
 
 	Promise.all([promiseForStream(s1), promiseForStream(s2)]).then(() => {
-		console.log('[EVENTS - Image Upload] uploaded images to GCS')
+		console.log(`[EVENTS - Image Upload] uploaded images for ${req.body.slug} to GCS`)
 		res.json('done')
 	})
 
