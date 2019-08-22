@@ -3,6 +3,8 @@ const fs = require('fs')
 const express = require('express')
 
 
+const Countries = require('./src/countries')
+
 
 const apiAuth = (req, res, next) => {
 
@@ -23,6 +25,8 @@ app.use(apiAuth)
 app.get('/', (req, res) => {
 	res.json('Next Race APIs')
 })
+
+app.use('/countries', Countries)
 
 
 app.listen(process.env.PORT || 8080, () => {
