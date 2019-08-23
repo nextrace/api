@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
 	sqlInserts.push((page - 1) * perPage, perPage)
 
 	let events = await dbQuery(sql, sqlInserts)
-	let races = await dbQuery('SELECT event_id, name, date, time_limit, distance, elevation, max_participants, link FROM race WHERE event_id IN (?)', [events.map(event => event.id)])
+	let races = events.length ? await dbQuery('SELECT event_id, name, date, time_limit, distance, elevation, max_participants, link FROM race WHERE event_id IN (?)', [events.map(event => event.id)]) : []
 
 
 	events = events.map(event => {
