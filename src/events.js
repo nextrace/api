@@ -6,6 +6,7 @@ const fs  = require('fs')
 const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
+const moment = require('moment')
 
 
 // list all events, with search too
@@ -46,6 +47,28 @@ router.get('/', async (req, res) => {
 		} else {
 			return res.status(400).json({ message: 'Not a valid category' })
 		}
+	}
+
+	// Date filter
+	if (filters.date === 'weekend') {
+		const endOfWeek = moment().endOf('week')
+		sql += ' AND `date` >= ? AND `date` <= ?'
+		sqlInserts.push(endOfWeek.subtract(1, 'day').format(), endOfWeek.add(2, 'days').format())
+	} else if (filters.date === 'nextweekend') {
+		const nextWeekend = moment().endOf('week').add(6, 'days')
+		sql += ' AND `date` >= ? AND `date` <= ?'
+		sqlInserts.push(nextWeekend.format(), nextWeekend.add(2, 'days').format())
+	} else if (filters.date === 'month') {
+		const month = moment().startOf('month')
+		sql += ' AND `date` >= ? AND `date` <= ?'
+		sqlInserts.push(month.format(), month.endOf('month').format())
+	} else if (filters.date === 'nextmonth') {
+		const nextMonth = moment().endOf('month').add(1, 'day')
+		sql += ' AND `date` >= ? AND `date` <= ?'
+		sqlInserts.push(nextMonth.format(), nextMonth.endOf('month').format())
+	} else if (filters.date === 'all') {
+		sql += ' AND `date` >= ?'
+		sqlInserts.push(moment().subtract(2, 'days').format())
 	}
 
 	// order
