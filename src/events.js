@@ -89,6 +89,27 @@ router.get('/', async (req, res) => {
 		return event
 	})
 
+
+	// Distance filter
+	if (filters.distance !== 'all') {
+		let [min, max] = filters.distance.split(',').map(d => parseInt(d, 10))
+		min = min || 0
+		max = (max || 9999) + .5
+
+		events = events.filter(event => {
+			let ok = false
+
+			event.races.forEach(race => {
+				if (race.distance && race.distance >= min && race.distance <= max) {
+					ok = true
+				}
+			})
+
+			return ok
+		})
+	}
+
+
 	res.json(events)
 })
 
