@@ -22,7 +22,13 @@ router.get('/', async (req, res) => {
 	const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10)			// restrict to max page 10 atm
 	const perPage = Math.min(Math.max(parseInt(req.query.perPage) || 32, 5), 100)	// max 100 results
 
-	let sql = 'SELECT id, category_id, name, slug, date, date_end, links, location_name, location_locality, location_county_state, location_country_id FROM `event` WHERE `status` = ?';
+	let sql = 'SELECT distinct(e.id), e.name, e.slug, e.date, e.date_end, e.links, e.location_name, e.location_locality, e.location_county_state, \
+					co.name AS location_country_name, co.code AS location_country_code, co.code3 AS location_country_code3 \
+				FROM `event` `e` \
+				INNER JOIN `race` `r` ON r.event_id = e.id \
+				INNER JOIN `event_category` `ec` ON ec.event_id = e.id \
+				INNER JOIN `country` `co` ON co.id = e.location_country_id \
+				WHERE e.`status` = ?';
 	let sqlInserts = [ filters.status ]
 
 	// Country filter
@@ -42,73 +48,71 @@ router.get('/', async (req, res) => {
 		let category = await dbQuery('SELECT id FROM `category` WHERE `slug` = ?', [filters.category])
 
 		if (category.length) {
-			sql += ' AND `category_id` = ?'
+			sql += ' AND ec.`category_id` = ?'
 			sqlInserts.push(category[0].id)
 		} else {
 			return res.status(400).json({ message: 'Not a valid category' })
 		}
 	}
 
+	// Distance filter
+	if (filters.distance !== 'all') {
+		let [min, max] = filters.distance.split(',').map(d => parseInt(d, 10))
+		sql += ' AND r.`distance` >= ? AND r.`distance` <= ?'
+		sqlInserts.push(min || 0, (max || 9999) + .5)
+	}
+
 	// Date filter
 	if (filters.date === 'weekend') {
 		const endOfWeek = moment().endOf('week')
-		sql += ' AND `date` >= ? AND `date` <= ?'
+		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
 		sqlInserts.push(endOfWeek.subtract(1, 'day').format(), endOfWeek.add(2, 'days').format())
 	} else if (filters.date === 'nextweekend') {
 		const nextWeekend = moment().endOf('week').add(6, 'days')
-		sql += ' AND `date` >= ? AND `date` <= ?'
+		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
 		sqlInserts.push(nextWeekend.format(), nextWeekend.add(2, 'days').format())
 	} else if (filters.date === 'month') {
 		const month = moment().startOf('month')
-		sql += ' AND `date` >= ? AND `date` <= ?'
+		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
 		sqlInserts.push(month.format(), month.endOf('month').format())
 	} else if (filters.date === 'nextmonth') {
 		const nextMonth = moment().endOf('month').add(1, 'day')
-		sql += ' AND `date` >= ? AND `date` <= ?'
+		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
 		sqlInserts.push(nextMonth.format(), nextMonth.endOf('month').format())
 	} else if (filters.date === 'all') {
-		sql += ' AND `date` >= ?'
+		sql += ' AND e.`date` >= ?'
 		sqlInserts.push(moment().subtract(2, 'days').format())
 	}
 
 	// order
-	sql += ' ORDER BY `date` ASC'
+	sql += ' ORDER BY e.`date` ASC'
 
 	// limit
 	sql += ' LIMIT ?, ?'
 	sqlInserts.push((page - 1) * perPage, perPage)
 
 	let events = await dbQuery(sql, sqlInserts)
-	let races = events.length ? await dbQuery('SELECT event_id, name, date, time_limit, distance, elevation, max_participants, link FROM race WHERE event_id IN (?)', [events.map(event => event.id)]) : []
-
+	let races = events.length ? await dbQuery('SELECT event_id, id, name, category_id, grouping, date, time_limit, distance, elevation AS ascent, max_participants, link FROM race WHERE event_id IN (?)', [events.map(event => event.id)]) : []
+	let categories = events.length ? await dbQuery('SELECT event_id, id, slug, name, name_short, color, emoji FROM category, event_category WHERE id = category_id AND event_id IN (?)', [events.map(event => event.id)]) : []
 
 	events = events.map(event => {
 		event.links = JSON.parse(event.links)
+
+		event.location_country = {
+			name:	event.location_country_name,
+			code:	event.location_country_code,
+			code3:	event.location_country_code3
+		}
+
+		delete event.location_country_name
+		delete event.location_country_code
+		delete event.location_country_code3
+
+		event.categories = categories.filter(category => category.event_id === event.id)
 		event.races = races.filter(race => race.event_id === event.id)
 
 		return event
 	})
-
-
-	// Distance filter
-	if (filters.distance !== 'all') {
-		let [min, max] = filters.distance.split(',').map(d => parseInt(d, 10))
-		min = min || 0
-		max = (max || 9999) + .5
-
-		events = events.filter(event => {
-			let ok = false
-
-			event.races.forEach(race => {
-				if (race.distance && race.distance >= min && race.distance <= max) {
-					ok = true
-				}
-			})
-
-			return ok
-		})
-	}
-
 
 	res.json(events)
 })
