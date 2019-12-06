@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { dbQuery } = require('./db.js')
+const { knex } = require('./utils.js')
 
 // middleware that is specific to this router
 router.use(function timeLog (req, res, next) {
@@ -9,17 +9,17 @@ router.use(function timeLog (req, res, next) {
 
 // list all categories
 router.get('/', async (req, res) => {
-	const categories = await dbQuery('SELECT slug, name, priority, color FROM `category`')
+	const categories = await knex('category').select('slug', 'name', 'priority', 'color', 'emoji')
 
 	res.json(categories)
 })
 
 // get one category
 router.get('/:slug', async (req, res) => {
-	const categories = await dbQuery('SELECT slug, name, priority, color FROM category WHERE slug = ?', [req.params.slug])
+	const category = await knex('category').select('slug', 'name', 'priority', 'color', 'emoji').where('slug', req.params.slug).first()
 
-	if (categories.length) {
-		res.json(categories[0])
+	if (category) {
+		res.json(category)
 	} else {
 		res.status(404).json({ message: 'Category not found' })
 	}

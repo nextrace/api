@@ -5,6 +5,7 @@ const express = require('express')
 const Countries = require('./src/countries')
 const Categories = require('./src/categories')
 const Events = require('./src/events')
+const Organizers = require('./src/organizers')
 
 
 const apiAuth = (req, res, next) => {
@@ -30,6 +31,7 @@ app.get('/', (req, res) => {
 app.use('/categories', Categories)
 app.use('/countries', Countries)
 app.use('/events', Events)
+app.use('/organizers', Organizers)
 
 
 app.listen(process.env.PORT || 8080, () => {
