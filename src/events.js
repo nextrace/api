@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
 		country:	req.query.country || 'ES',	// only filter avoided to be `all`
 		category:	req.query.category || 'all',
 		distance:	req.query.distance || 'all',
-		date:		req.query.date || 'all'
+		date:		req.query.date || 'all',
+		q:			req.query.q || '',
 	}
 
 	const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10)			// restrict to max page 10 atm
@@ -79,9 +80,27 @@ router.get('/', async (req, res) => {
 		const nextMonth = moment().endOf('month').add(1, 'day')
 		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
 		sqlInserts.push(nextMonth.format(), nextMonth.endOf('month').format())
-	} else if (filters.date === 'all') {
+	} else if (filters.date.includes(',')) {
+		let [dateStart, dateEnd] = filters.date.split(',')
+
+		if (moment(dateStart).isValid()) {
+			sql += ' AND e.`date` >= ?'
+			sqlInserts.push(moment(dateStart).format())
+		}
+
+		if (moment(dateEnd).isValid()) {
+			sql += ' AND e.`date` <= ?'
+			sqlInserts.push(moment(dateEnd).format())
+		}
+	} else {
 		sql += ' AND e.`date` >= ?'
 		sqlInserts.push(moment().subtract(2, 'days').format())
+	}
+
+	// Words filter
+	if (filters.q.length) {
+		sql += ' AND (e.`name` LIKE ? OR e.`location_locality` LIKE ? OR e.`location_name` LIKE ?)'
+		sqlInserts.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`)
 	}
 
 	// order
