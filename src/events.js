@@ -18,6 +18,7 @@ router.get('/', async (req, res) => {
 		distance:	req.query.distance || 'all',
 		date:		req.query.date || 'all',
 		q:			req.query.q || '',
+		featured:	req.query.featured === '1',
 	}
 
 	const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10)			// restrict to max page 10 atm
@@ -101,6 +102,12 @@ router.get('/', async (req, res) => {
 	if (filters.q.length) {
 		sql += ' AND (e.`name` LIKE ? OR e.`location_locality` LIKE ? OR e.`location_name` LIKE ?)'
 		sqlInserts.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`)
+	}
+
+	// Words filter
+	if (filters.featured) {
+		sql += ' AND e.featured = ?'
+		sqlInserts.push(1)
 	}
 
 	// order
