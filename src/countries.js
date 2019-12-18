@@ -1,27 +1,31 @@
 const router = require('express').Router()
-const { dbQuery } = require('./db.js')
+const { knex } = require('./utils.js')
 
 // list all countries
 router.get('/', async (req, res) => {
-	let sql = 'SELECT code, code3, name, continent, capital FROM country'
-	let sqlInserts = []
+	const fields = ['code', 'code3', 'name', 'continent', 'capital']
+	const countries = knex('country')
 
 	if (req.query.q && req.query.q.length > 1) {
-		sql += ' WHERE code LIKE ? OR code3 LIKE ? OR name LIKE ? OR capital LIKE ?'
-		sqlInserts.push(req.query.q, req.query.q, `${req.query.q}%`, `${req.query.q}%`)
+		countries
+			.where('code', 'LIKE', req.query.q)
+			.orWhere('code3', 'LIKE', req.query.q)
+			.orWhere('name', 'LIKE', `${req.query.q}%`)
+			.orWhere('capital', 'LIKE', `${req.query.q}%`)
 	}
 
-	const countries = await dbQuery(sql, sqlInserts)
-
-	res.json(countries)
+	res.json(await countries.select(fields))
 })
 
 // get one country
 router.get('/:code', async (req, res) => {
-	const countries = await dbQuery('SELECT code, code3, name, continent, capital FROM country WHERE code = ? OR code3 = ?', [req.params.code, req.params.code])
+	const country = await knex('country')
+						.select('code', 'code3', 'name', 'continent', 'capital')
+						.where('code', req.params.code).orWhere('code3', req.params.code).orWhere('name', req.params.code)
+						.first()
 
-	if (countries.length) {
-		res.json(countries[0])
+	if (country) {
+		res.json(country)
 	} else {
 		res.status(404).json({ message: 'Country code not found' })
 	}
