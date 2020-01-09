@@ -16,7 +16,7 @@ const apiAuth = (req, res, next) => {
 	if (allowedOrigins.includes(req.get('origin'))) {
 		res.set('Access-Control-Allow-Origin', req.get('origin'))
 		req.auth = true
-	} else if (req.hostname === 'localhost') {
+	} else if (req.hostname === 'localhost' || (req.query['serviceToken'] && process.env.SERVICE_TOKEN === req.query.serviceToken)) {
 		req.auth = true
 	} else {
 		console.warn('unauthorised request', {
