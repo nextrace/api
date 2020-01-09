@@ -152,8 +152,8 @@ router.get('/', async (req, res) => {
 	})
 
 	// Record event impressions
-	const dataBuffer = Buffer.from(JSON.stringify({ events: eventIds }))
-	pubsub.topic('event-impressions').publish(dataBuffer)
+	//const dataBuffer = Buffer.from(JSON.stringify({ events: eventIds }))
+	//pubsub.topic('event-impressions').publish(dataBuffer)
 
 	res.json(events)
 })
