@@ -7,10 +7,20 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment')
+const { PubSub } = require('@google-cloud/pubsub')
 
 
 // list all events, with search too
 router.get('/', async (req, res) => {
+
+	if (!req.auth) {
+		console.warn('unauthorised request')
+		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
+
+		return res.status(401).json('Authentication required')
+	}
+
+	const pubsub = new PubSub()
 	let filters = {
 		status:		'public',
 		country:	req.query.country || 'ES',	// only filter avoided to be `all`
@@ -22,7 +32,7 @@ router.get('/', async (req, res) => {
 	}
 
 	const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10)			// restrict to max page 10 atm
-	const perPage = Math.min(Math.max(parseInt(req.query.perPage) || 32, 5), 100)	// max 100 results
+	const perPage = Math.min(Math.max(parseInt(req.query.perPage) || 50, 5), 100)	// max 100 results
 
 	let sql = 'SELECT distinct(e.id), e.name, e.slug, e.date, e.date_end, e.links, e.location_name, e.location_locality, e.location_county_state, \
 					co.name AS location_country_name, co.code AS location_country_code, co.code3 AS location_country_code3 \
@@ -118,8 +128,9 @@ router.get('/', async (req, res) => {
 	sqlInserts.push((page - 1) * perPage, perPage)
 
 	let events = await dbQuery(sql, sqlInserts)
-	let races = events.length ? await dbQuery('SELECT event_id, id, name, category_id, grouping, date, time_limit, distance, elevation AS ascent, max_participants, link FROM race WHERE event_id IN (?)', [events.map(event => event.id)]) : []
-	let categories = events.length ? await dbQuery('SELECT event_id, id, slug, name, name_short, color, emoji FROM category, event_category WHERE id = category_id AND event_id IN (?)', [events.map(event => event.id)]) : []
+	const eventIds = events.map(event => event.id)
+	let races = events.length ? await dbQuery('SELECT event_id, id, name, category_id, grouping, date, time_limit, distance, elevation AS ascent, max_participants, link FROM race WHERE event_id IN (?)', [eventIds]) : []
+	let categories = events.length ? await dbQuery('SELECT event_id, id, slug, name, name_short, color, emoji FROM category, event_category WHERE id = category_id AND event_id IN (?)', [eventIds]) : []
 
 	events = events.map(event => {
 		event.links = JSON.parse(event.links)
@@ -140,12 +151,24 @@ router.get('/', async (req, res) => {
 		return event
 	})
 
+	// Record event impressions
+	const dataBuffer = Buffer.from(JSON.stringify({ events: eventIds }))
+	pubsub.topic('event-impressions').publish(dataBuffer)
+
 	res.json(events)
 })
 
 // upload image for event
 // TODO require auth
 router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) => {
+
+	if (!req.auth) {
+		console.warn('unauthorised request')
+		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
+
+		return res.status(401).json('Authentication required')
+	}
+
 	const bucket = storage.bucket('cdn.nextrace.cloud')
 
 	const opts = {
