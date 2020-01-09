@@ -19,7 +19,10 @@ const apiAuth = (req, res, next) => {
 	} else if (req.hostname === 'localhost') {
 		req.auth = true
 	} else {
-		console.warn('unauthorised request')
+		console.warn('unauthorised request', {
+			referer:	req.get('referer'),
+			origin:		req.get('origin'),
+		})
 		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
 
 		//return res.status(401).json('Authentication required')
