@@ -15,6 +15,7 @@ const apiAuth = (req, res, next) => {
 	// API key checking & CORS
 	if (allowedOrigins.includes(req.get('origin'))) {
 		res.set('Access-Control-Allow-Origin', req.get('origin'))
+		res.set('Access-Control-Allow-Headers', 'content-type')
 		req.auth = true
 	} else if (req.hostname === 'localhost' || (req.query['serviceToken'] && process.env.SERVICE_TOKEN === req.query.serviceToken)) {
 		req.auth = true
@@ -35,6 +36,7 @@ const apiAuth = (req, res, next) => {
 // App
 const app = express()
 app.use(apiAuth)
+app.use(express.json())
 
 app.get('/', (req, res) => {
 	res.json('NextRace APIs')
@@ -44,6 +46,7 @@ app.use('/categories', Categories)
 app.use('/countries', Countries)
 app.use('/events', Events)
 app.use('/organizers', Organizers)
+app.use('/analytics', require('./src/controllers/analytics'))
 
 
 app.listen(process.env.PORT || 8080, () => {

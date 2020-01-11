@@ -7,7 +7,6 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment')
-const { PubSub } = require('@google-cloud/pubsub')
 
 
 // list all events, with search too
@@ -20,7 +19,6 @@ router.get('/', async (req, res) => {
 		return res.status(401).json('Authentication required')
 	}
 
-	const pubsub = new PubSub()
 	let filters = {
 		status:		'public',
 		country:	req.query.country || 'ES',	// only filter avoided to be `all`
@@ -150,10 +148,6 @@ router.get('/', async (req, res) => {
 
 		return event
 	})
-
-	// Record event impressions
-	//const dataBuffer = Buffer.from(JSON.stringify({ events: eventIds }))
-	//pubsub.topic('event-impressions').publish(dataBuffer)
 
 	res.json(events)
 })
