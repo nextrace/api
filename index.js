@@ -12,7 +12,9 @@ const apiAuth = (req, res, next) => {
 	const allowedOrigins = ['https://nextrace.org', 'http://localhost']
 	req.auth = false
 
-	// API key checking & CORS
+	// API Key check for registered Apps
+	// AccessToken check for users
+
 	if (allowedOrigins.includes(req.get('origin'))) {
 		res.set('Access-Control-Allow-Origin', req.get('origin'))
 		res.set('Access-Control-Allow-Headers', 'content-type')
@@ -42,11 +44,12 @@ app.get('/', (req, res) => {
 	res.json('NextRace APIs')
 })
 
+app.use('/analytics', require('./src/controllers/analytics'))
 app.use('/categories', Categories)
 app.use('/countries', Countries)
 app.use('/events', Events)
 app.use('/organizers', Organizers)
-app.use('/analytics', require('./src/controllers/analytics'))
+app.use('/person', require('./src/controllers/person'))
 
 
 app.listen(process.env.PORT || 8080, () => {
