@@ -150,6 +150,8 @@ router.get('/', async (req, res) => {
 		return event
 	})
 
+	res.set('Cache-Control', 'public, max-age=7200')
+
 	res.json(events)
 })
 
