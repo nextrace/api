@@ -9,19 +9,29 @@ router.use(function timeLog (req, res, next) {
 
 // list all categories
 router.get('/', async (req, res) => {
-	const categories = await knex('category').select('slug', 'name', 'priority', 'color', 'emoji')
+	const categories = await knex('category').select('id', 'slug', 'name', 'priority', 'color', 'emoji')
 
-	res.json(categories)
+	// Categories don't change often, 1 month cache is ok
+	res.set('Cache-Control', 'public, max-age=2628000')
+
+	return res.json(categories)
 })
 
 // get one category
-router.get('/:slug', async (req, res) => {
-	const category = await knex('category').select('slug', 'name', 'priority', 'color', 'emoji').where('slug', req.params.slug).first()
+router.get('/:category', async (req, res) => {
+	const category = await knex('category')
+						.select('id', 'slug', 'name', 'priority', 'color', 'emoji')
+						.where('id', req.params.category)
+						.orWhere('slug', req.params.category)
+						.first()
+
+	// Categories don't change often, 1 month cache is ok
+	res.set('Cache-Control', 'public, max-age=2628000')
 
 	if (category) {
-		res.json(category)
+		return res.json(category)
 	} else {
-		res.status(404).json({ message: 'Category not found' })
+		return res.status(404).json({ message: 'Category not found' })
 	}
 })
 
