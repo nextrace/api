@@ -12,6 +12,7 @@ const moment = require('moment')
 // list all events, with search too
 router.get('/', async (req, res) => {
 
+	// Require auth
 	if (!req.auth) {
 		console.warn('unauthorised request')
 		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')

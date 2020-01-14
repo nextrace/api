@@ -77,18 +77,26 @@ router.get('/:handle/race-calendar', async (req, res) => {
 						.orderBy('event.date', 'DESC')
 
 	raceCalendar.push(...upcoming, ...completed)
-	raceCalendar = raceCalendar.map(event => {
-		event.event = {}
 
-		for (const key in event) {
+	const eventIds = raceCalendar.map(ev => ev.event_id)
+	const categories = await knex('event_category').where('event_id', 'IN', eventIds)
+	// TODO return only Race IDs, and let the client request Race details
+	const races = await knex('race').where('event_id', 'IN', eventIds)
+
+	raceCalendar = raceCalendar.map(ev => {
+		ev.event = {}
+		ev.event.categories = categories.filter(eventCategory => eventCategory.event_id === ev.event_id).map(category => category.category_id)
+		ev.event.races = races.filter(race => race.event_id === ev.event_id)
+
+		for (const key in ev) {
 			if (key.startsWith('event_')) {
 				label = key.replace(`event_`, '')
-				event.event[label] = event[key]
-				delete event[key]
+				ev.event[label] = ev[key]
+				delete ev[key]
 			}
 		}
 
-		return event
+		return ev
 	})
 
 	return res.json(raceCalendar)
