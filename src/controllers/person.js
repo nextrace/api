@@ -36,13 +36,16 @@ router.get('/:handle/race-calendar', async (req, res) => {
 		return res.status(401).json('Authentication required')
 	}
 
+	const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10)			// restrict to max page 10 atm
+	const perPage = Math.min(Math.max(parseInt(req.query.perPage) || 50, 5), 100)	// max 100 results
+	const order = req.query.order || 'desc'
+
 	let user = await knex('user').where('handle', req.params.handle).first()
 
 	if (!user) {
 		return res.status(404).json('Person not found')
 	}
 
-	let raceCalendar = []
 	const eventFields = [
 		{event_name: 'event.name'},
 		{event_slug: 'event.slug'},
@@ -60,23 +63,24 @@ router.get('/:handle/race-calendar', async (req, res) => {
 		{event_previous_event_id: 'event.previous_event_id'},
 	]
 
-	let upcoming = await knex('event_person')
+	let raceCalendar = await knex('event_person')
 						.select(['event_person.*', ...eventFields])
 						.innerJoin('event', 'event_person.event_id', 'event.id')
 						.where('user_id', user.id)
-						.andWhere('type', 'IN', ['going', 'interested', 'spectator'])
-						.andWhere('event.date', '>', new Date)
-						.orderBy('event.date', 'DESC')
-
-	let completed = await knex('event_person')
-						.select(['event_person.*', ...eventFields])
-						.innerJoin('event', 'event_person.event_id', 'event.id')
-						.where('user_id', user.id)
-						.andWhere('type', 'IN', ['going'])
-						.andWhere('event.date', '<=', new Date)
-						.orderBy('event.date', 'DESC')
-
-	raceCalendar.push(...upcoming, ...completed)
+						.andWhere(builder => {
+							// Upcoming events
+							builder.where(builder => {
+								builder.where('type', 'IN', ['going', 'interested', 'spectator'])
+								builder.andWhere('event.date', '>', new Date)
+							})
+							// Past events
+							builder.orWhere(builder => {
+								builder.where('type', 'IN', ['going'])
+								builder.andWhere('event.date', '<=', new Date)
+							})
+						})
+						.offset((page - 1) * perPage).limit(perPage)
+						.orderBy('event.date', order)
 
 	const eventIds = raceCalendar.map(ev => ev.event_id)
 	const categories = await knex('event_category').where('event_id', 'IN', eventIds)
@@ -85,8 +89,6 @@ router.get('/:handle/race-calendar', async (req, res) => {
 
 	raceCalendar = raceCalendar.map(ev => {
 		ev.event = {}
-		ev.event.categories = categories.filter(eventCategory => eventCategory.event_id === ev.event_id).map(category => category.category_id)
-		ev.event.races = races.filter(race => race.event_id === ev.event_id)
 
 		for (const key in ev) {
 			if (key.startsWith('event_')) {
@@ -95,6 +97,9 @@ router.get('/:handle/race-calendar', async (req, res) => {
 				delete ev[key]
 			}
 		}
+
+		ev.event.categories = categories.filter(eventCategory => eventCategory.event_id === ev.event.id).map(category => category.category_id)
+		ev.event.races = races.filter(race => race.event_id === ev.event.id)
 
 		return ev
 	})
