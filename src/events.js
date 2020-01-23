@@ -7,6 +7,7 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment')
+const { knex } = require('./utils.js')
 
 
 // list all events, with search too
@@ -154,6 +155,21 @@ router.get('/', async (req, res) => {
 
 	res.json(events)
 })
+
+
+// Get a list of countyState for a specific Country
+router.get('/countyState/:country', async (req, res) => {
+
+	const country = await knex('country').where('code', req.params.country).first()
+	
+	const countyStates = await knex('event').select({countyState: 'location_county_state'}).count({ total: 'location_county_state' }).where({
+		location_country_id:	country.id,
+		status:					'public',
+	}).whereNotNull('location_county_state').groupBy('location_county_state').orderBy('location_county_state', 'asc')
+
+	return res.json(countyStates)
+})
+
 
 // upload image for event
 // TODO require auth
