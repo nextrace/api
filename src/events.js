@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
 	let filters = {
 		status:		'public',
 		country:	req.query.country || 'ES',	// only filter avoided to be `all`
+		countyState:	req.query.countyState || 'all',
 		category:	req.query.category || 'all',
 		distance:	req.query.distance || 'all',
 		date:		req.query.date || 'all',
@@ -53,6 +54,12 @@ router.get('/', async (req, res) => {
 		} else {
 			return res.status(400).json({ message: 'Not a valid country code' })
 		}
+	}
+
+	// CountyState filter
+	if (filters.countyState !== 'all') {
+		sql += ' AND `location_county_state` = ?'
+		sqlInserts.push(filters.countyState)
 	}
 
 	// Category filter
