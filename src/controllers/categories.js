@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { knex } = require('./utils.js')
+const { knex } = require('../utils.js')
 
 // middleware that is specific to this router
 router.use(function timeLog (req, res, next) {

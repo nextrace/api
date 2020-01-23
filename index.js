@@ -2,10 +2,10 @@ require('dotenv').config({ path: './.env' })
 const express = require('express')
 
 
-const Countries = require('./src/countries')
-const Categories = require('./src/categories')
+const Countries = require('./src/controllers/countries')
+const Categories = require('./src/controllers/categories')
 const Events = require('./src/events')
-const Organizers = require('./src/organizers')
+const Organizers = require('./src/controllers/organizers')
 
 
 const apiAuth = (req, res, next) => {

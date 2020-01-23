@@ -1,5 +1,5 @@
 const router = require('express').Router()
-const { knex } = require('./utils.js')
+const { knex } = require('../utils.js')
 
 // list all countries
 router.get('/', async (req, res) => {
