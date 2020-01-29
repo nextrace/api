@@ -7,7 +7,7 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment')
-const { knex } = require('./utils.js')
+const { knex, categoryFields, raceFields } = require('./utils.js')
 
 
 // list all events, with search too
@@ -46,14 +46,8 @@ router.get('/', async (req, res) => {
 
 	// Country filter
 	if (filters.country !== 'all') {
-		let country = await dbQuery('SELECT id FROM `country` WHERE `code` = ?', [filters.country])
-
-		if (country.length) {
-			sql += ' AND `location_country_id` = ?'
-			sqlInserts.push(country[0].id)
-		} else {
-			return res.status(400).json({ message: 'Not a valid country code' })
-		}
+		sql += ' AND co.code = ?'
+		sqlInserts.push(filters.country)
 	}
 
 	// CountyState filter
@@ -64,11 +58,11 @@ router.get('/', async (req, res) => {
 
 	// Category filter
 	if (filters.category !== 'all') {
-		let category = await dbQuery('SELECT id FROM `category` WHERE `slug` = ?', [filters.category])
+		let category = await knex('category').where('slug', filters.category).first()
 
-		if (category.length) {
+		if (category) {
 			sql += ' AND ec.`category_id` = ?'
-			sqlInserts.push(category[0].id)
+			sqlInserts.push(category.id)
 		} else {
 			return res.status(400).json({ message: 'Not a valid category' })
 		}
@@ -121,7 +115,7 @@ router.get('/', async (req, res) => {
 		sqlInserts.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`)
 	}
 
-	// Words filter
+	// Featured filter
 	if (filters.featured) {
 		sql += ' AND e.featured = ?'
 		sqlInserts.push(1)
@@ -136,8 +130,8 @@ router.get('/', async (req, res) => {
 
 	let events = await dbQuery(sql, sqlInserts)
 	const eventIds = events.map(event => event.id)
-	let races = events.length ? await dbQuery('SELECT event_id, id, name, category_id, grouping, date, time_limit, distance, elevation AS ascent, max_participants, link FROM race WHERE event_id IN (?)', [eventIds]) : []
-	let categories = events.length ? await dbQuery('SELECT event_id, id, slug, name, name_short, color, emoji FROM category, event_category WHERE id = category_id AND event_id IN (?)', [eventIds]) : []
+	let races = events.length ? await knex('race').select(raceFields).whereIn('event_id', eventIds) : []
+	let categories = events.length ? await knex('category').select([...categoryFields, 'event_id']).join('event_category', 'event_category.category_id', 'category.id').whereIn('event_id', eventIds) : []
 
 	events = events.map(event => {
 		event.links = JSON.parse(event.links)
@@ -168,7 +162,7 @@ router.get('/', async (req, res) => {
 router.get('/countyState/:country', async (req, res) => {
 
 	const country = await knex('country').where('code', req.params.country).first()
-	
+
 	const countyStates = await knex('event').select({countyState: 'location_county_state'}).count({ total: 'location_county_state' }).where({
 		location_country_id:	country.id,
 		status:					'public',
