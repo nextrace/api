@@ -6,10 +6,9 @@ router.get('/event-impressions', async (req, res) => {
 
 	if (req.query.events) {
 		const pubsub = new PubSub()
-		const payload = { events: req.query.events.map(id => parseInt(id, 10)) }
-		const dataBuffer = Buffer.from(JSON.stringify(payload))
+		const json = { events: req.query.events.map(id => parseInt(id, 10)) }
 
-		pubsub.topic('event-impressions').publish(dataBuffer)
+		pubsub.topic('event-impressions').publishMessage({ json })
 		return res.json(true)
 	}
 
