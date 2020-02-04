@@ -2,12 +2,6 @@ require('dotenv').config({ path: './.env' })
 const express = require('express')
 
 
-const Countries = require('./src/controllers/countries')
-const Categories = require('./src/controllers/categories')
-const Events = require('./src/events')
-const Organizers = require('./src/controllers/organizers')
-
-
 const apiAuth = (req, res, next) => {
 	const allowedOrigins = ['https://nextrace.org', 'http://localhost']
 	req.auth = false
@@ -45,10 +39,10 @@ app.get('/', (req, res) => {
 })
 
 app.use('/analytics', require('./src/controllers/analytics'))
-app.use('/categories', Categories)
-app.use('/countries', Countries)
-app.use('/events', Events)
-app.use('/organizers', Organizers)
+app.use('/categories', require('./src/controllers/categories'))
+app.use('/countries', require('./src/controllers/countries'))
+app.use('/events', require('./src/controllers/events'))
+app.use('/organizers', require('./src/controllers/organizers'))
 app.use('/person', require('./src/controllers/person'))
 
 

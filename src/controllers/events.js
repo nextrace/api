@@ -6,7 +6,7 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment')
-const { knex, categoryFields, raceFields } = require('./utils.js')
+const { knex, categoryFields, raceFields } = require('../utils.js')
 
 
 // list all events, with search too
