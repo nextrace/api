@@ -1,5 +1,4 @@
 const router = require('express').Router()
-const { dbQuery } = require('./db.js')
 const { Storage } = require('@google-cloud/storage')
 const storage = new Storage()
 const fs  = require('fs')
@@ -22,38 +21,34 @@ router.get('/', async (req, res) => {
 	}
 
 	let filters = {
-		status:		'public',
-		country:	req.query.country || 'ES',	// only filter avoided to be `all`
+		status:			'public',
+		country:		req.query.country || 'ES',	// only filter avoided to be `all`
 		countyState:	req.query.countyState || 'all',
-		category:	req.query.category || 'all',
-		distance:	req.query.distance || 'all',
-		date:		req.query.date || 'all',
-		q:			req.query.q || '',
-		featured:	req.query.featured === '1',
+		category:		req.query.category || 'all',
+		distance:		req.query.distance || 'all',
+		date:			req.query.date || 'all',
+		q:				req.query.q || '',
+		featured:		req.query.featured === '1',
 	}
 
 	const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10)			// restrict to max page 10 atm
 	const perPage = Math.min(Math.max(parseInt(req.query.perPage) || 50, 5), 100)	// max 100 results
 
-	let sql = 'SELECT distinct(e.id), e.name, e.slug, e.date, e.date_end, e.links, e.location_name, e.location_locality, e.location_county_state, \
-					co.name AS location_country_name, co.code AS location_country_code, co.code3 AS location_country_code3 \
-				FROM `event` `e` \
-				INNER JOIN `race` `r` ON r.event_id = e.id \
-				INNER JOIN `event_category` `ec` ON ec.event_id = e.id \
-				INNER JOIN `country` `co` ON co.id = e.location_country_id \
-				WHERE e.`status` = ?';
-	let sqlInserts = [ filters.status ]
+	const eventsQuery = knex('event').distinct('event.id')
+						.select(['event.name', 'event.slug', 'event.date', 'event.date_end', 'event.links', 'event.location_name', 'event.location_locality', 'event.location_county_state', {location_country_name: 'country.name'}, {location_country_code: 'country.code'}, {location_country_code3: 'country.code3'}])
+						.innerJoin('country', 'event.location_country_id', 'country.id')
+						.innerJoin('event_category', 'event.id', 'event_category.event_id')
+						.innerJoin('race', 'event.id', 'race.event_id')
+						.where('event.status', filters.status)
 
 	// Country filter
 	if (filters.country !== 'all') {
-		sql += ' AND co.code = ?'
-		sqlInserts.push(filters.country)
+		eventsQuery.andWhere('country.code', filters.country)
 	}
 
 	// CountyState filter
 	if (filters.countyState !== 'all') {
-		sql += ' AND `location_county_state` = ?'
-		sqlInserts.push(filters.countyState)
+		eventsQuery.andWhere('event.location_county_state', filters.countyState)
 	}
 
 	// Category filter
@@ -61,8 +56,7 @@ router.get('/', async (req, res) => {
 		let category = await knex('category').where('slug', filters.category).first()
 
 		if (category) {
-			sql += ' AND ec.`category_id` = ?'
-			sqlInserts.push(category.id)
+			eventsQuery.andWhere('event_category.category_id', category.id)
 		} else {
 			return res.status(400).json({ message: 'Not a valid category' })
 		}
@@ -71,64 +65,53 @@ router.get('/', async (req, res) => {
 	// Distance filter
 	if (filters.distance !== 'all') {
 		let [min, max] = filters.distance.split(',').map(d => parseInt(d, 10))
-		sql += ' AND r.`distance` >= ? AND r.`distance` <= ?'
-		sqlInserts.push(min || 0, (max || 9999) + .5)
+		eventsQuery.andWhere('race.distance', '>=', min || 0).andWhere('race.distance', '<=', (max || 9999) + .5)
 	}
 
 	// Date filter
 	if (filters.date === 'weekend') {
 		const endOfWeek = moment().endOf('week')
-		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
-		sqlInserts.push(endOfWeek.subtract(1, 'day').format(), endOfWeek.add(2, 'days').format())
+		eventsQuery.andWhere('event.date', '>=', endOfWeek.subtract(1, 'day').format()).andWhere('event.date', '<=', endOfWeek.add(2, 'days').format())
 	} else if (filters.date === 'nextweekend') {
 		const nextWeekend = moment().endOf('week').add(6, 'days')
-		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
-		sqlInserts.push(nextWeekend.format(), nextWeekend.add(2, 'days').format())
+		eventsQuery.andWhere('event.date', '>=', nextWeekend.format()).andWhere('event.date', '<=', nextWeekend.add(2, 'days').format())
 	} else if (filters.date === 'month') {
 		const month = moment().startOf('month')
-		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
-		sqlInserts.push(month.format(), month.endOf('month').format())
+		eventsQuery.andWhere('event.date', '>=', month.format()).andWhere('event.date', '<=', month.endOf('month').format())
 	} else if (filters.date === 'nextmonth') {
 		const nextMonth = moment().endOf('month').add(1, 'day')
-		sql += ' AND e.`date` >= ? AND e.`date` <= ?'
-		sqlInserts.push(nextMonth.format(), nextMonth.endOf('month').format())
+		eventsQuery.andWhere('event.date', '>=', nextMonth.format()).andWhere('event.date', '<=', nextMonth.endOf('month').format())
 	} else if (filters.date.includes(',')) {
 		let [dateStart, dateEnd] = filters.date.split(',')
 
 		if (moment(dateStart).isValid()) {
-			sql += ' AND e.`date` >= ?'
-			sqlInserts.push(moment(dateStart).format())
+			eventsQuery.andWhere('event.date', '>=', moment(dateStart).format())
 		}
 
 		if (moment(dateEnd).isValid()) {
-			sql += ' AND e.`date` <= ?'
-			sqlInserts.push(moment(dateEnd).format())
+			eventsQuery.andWhere('event.date', '<=', moment(dateEnd).format())
 		}
 	} else {
-		sql += ' AND e.`date` >= ?'
-		sqlInserts.push(moment().subtract(2, 'days').format())
+		eventsQuery.andWhere('event.date', '>=', moment().subtract(2, 'days').format())
 	}
 
 	// Words filter
 	if (filters.q.length) {
-		sql += ' AND (e.`name` LIKE ? OR e.`location_locality` LIKE ? OR e.`location_name` LIKE ?)'
-		sqlInserts.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`)
+		eventsQuery.andWhere(q => {
+			q.where('event.name', 'LIKE', `%${filters.q}%`).orWhere('event.location_locality', 'LIKE', `%${filters.q}%`).orWhere('event.location_name', 'LIKE', `%${filters.q}%`)
+		})
 	}
 
 	// Featured filter
 	if (filters.featured) {
-		sql += ' AND e.featured = ?'
-		sqlInserts.push(1)
+		eventsQuery.andWhere('event.featured', 1)
 	}
 
-	// order
-	sql += ' ORDER BY e.`date` ASC'
+	// Order & pagination
+	eventsQuery.orderBy('event.date', 'ASC').offset((page - 1) * perPage).limit(perPage)
 
-	// limit
-	sql += ' LIMIT ?, ?'
-	sqlInserts.push((page - 1) * perPage, perPage)
 
-	let events = await dbQuery(sql, sqlInserts)
+	let events = await eventsQuery
 	const eventIds = events.map(event => event.id)
 	let races = events.length ? await knex('race').select(raceFields).whereIn('event_id', eventIds) : []
 	let categories = events.length ? await knex('category').select([...categoryFields, 'event_id']).join('event_category', 'event_category.category_id', 'category.id').whereIn('event_id', eventIds) : []
