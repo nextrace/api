@@ -208,9 +208,10 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 			cacheControl:	'public, max-age=604800, stale-while-revalidate=43200'
 		}
 	}
-	const file1 = bucket.file(`events/${req.body.slug}-1280x720.jpg`).createWriteStream(opts)
-	const file2 = bucket.file(`events/${req.body.slug}-560x315.jpg`).createWriteStream(opts)
-
+	const file1 = bucket.file(`events/${req.body.slug}-lg.jpg`).createWriteStream(opts)
+	const file2 = bucket.file(`events/${req.body.slug}-lg.webp`).createWriteStream(opts)
+	const file3 = bucket.file(`events/${req.body.slug}-md.jpg`).createWriteStream(opts)
+	const file4 = bucket.file(`events/${req.body.slug}-md.webp`).createWriteStream(opts)
 
 	const promiseForStream = stream => {
 		return new Promise((resolve, reject) => {
@@ -221,9 +222,11 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 
 	const pipeline = sharp().resize(1280, 720)
 	const s1 = pipeline.clone().jpeg({ quality: 90 }).pipe(file1)
-	const s2 = pipeline.clone().resize(560, 315).jpeg({ quality: 90 }).pipe(file2)
+	const s2 = pipeline.clone().webp({ quality: 90 }).pipe(file2)
+	const s3 = pipeline.clone().resize(560, 315).jpeg({ quality: 90 }).pipe(file3)
+	const s4 = pipeline.clone().resize(560, 315).webp({ quality: 90 }).pipe(file4)
 
-	Promise.all([promiseForStream(s1), promiseForStream(s2)]).then(() => {
+	Promise.all([promiseForStream(s1), promiseForStream(s2), promiseForStream(s3), promiseForStream(s4)]).then(() => {
 		console.log(`[EVENTS - Image Upload] uploaded images for ${req.body.slug} to GCS`)
 		res.json('done')
 	})
