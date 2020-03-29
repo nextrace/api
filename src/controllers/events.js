@@ -188,6 +188,52 @@ router.get('/countyState/:country', async (req, res) => {
 })
 
 
+router.get('/:event/timeline', async (req, res) => {
+
+	if (!req.auth) {
+		console.warn('unauthorised request')
+		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
+
+		return res.status(401).json({
+			type: null,
+			title: 'Authentication required',
+		})
+	}
+
+	const eventFields = ['id', 'name', 'slug', 'date', 'status', 'previous_event_id']
+	let checkFuture = true
+
+	const events = await knex('event').select(eventFields).where('slug', req.params.event)
+
+	if (!events.length) {
+		return res.status(404).json({
+			type: null,
+			title: 'Not Found',
+		})
+	}
+
+	// past events
+	while (events[events.length - 1].previous_event_id) {
+		events.push(await knex('event').select(eventFields).where('id', events[events.length - 1].previous_event_id).first())
+	}
+
+	// next events
+	while (checkFuture) {
+		const next = await knex('event').select(eventFields).where('previous_event_id', events[0].id).first()
+
+		if (next) {
+			events.unshift(next)
+		} else {
+			checkFuture = false
+		}
+	}
+
+	return res.set({
+		'Cache-Control':	'public, max-age=7200',
+	}).json(events)
+})
+
+
 // upload image for event
 // TODO require auth
 router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) => {
