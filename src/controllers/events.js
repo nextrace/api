@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
 		country:		req.query.country || 'ES',	// only filter avoided to be `all`
 		countyState:	req.query.countyState || 'all',
 		category:		req.query.category || 'all',
+		organizer:		req.query.organizer || 'all',
 		distance:		req.query.distance || 'all',
 		date:			req.query.date || 'all',
 		q:				req.query.q || '',
@@ -68,6 +69,12 @@ router.get('/', async (req, res) => {
 		} else {
 			return res.status(400).json({ message: 'Not a valid category' })
 		}
+	}
+
+	// Organizer filter
+	if (filters.organizer !== 'all') {
+		eventsQuery.innerJoin('event_organizer', 'event.id', 'event_organizer.event_id')
+		eventsQuery.andWhere('event_organizer.organizer_id', filters.organizer)
 	}
 
 	// Distance filter
