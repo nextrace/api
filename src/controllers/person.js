@@ -47,6 +47,7 @@ router.get('/:handle/race-calendar', async (req, res) => {
 	}
 
 	const eventFields = [
+		{event_status: 'event.status'},
 		{event_name: 'event.name'},
 		{event_slug: 'event.slug'},
 		{event_date: 'event.date'},
