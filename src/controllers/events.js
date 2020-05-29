@@ -13,6 +13,22 @@ const slugify = require('slugify')
 // data cache
 const cacheCategoryIds = {}
 
+const eventFields = ['event.name', 'event.slug', 'event.date', 'event.date_end', 'event.timezone', 'event.links', 'event.location_name', 'event.location_street', 'event.location_locality', 'event.location_county_state', {location_country: 'country.code'}, {location_country_name: 'country.name'}, 'event.location_lat_lng']
+
+const processEventLinks = event => {
+	event.links = JSON.parse(event.links)
+
+	for (const link in event.links) {
+		if (event.links[link]) {
+			event.links[link] = `https://api.nextrace.cloud/events/${event.slug}/link/${link}`
+		} else {
+			delete event.links[link]
+		}
+	}
+
+	return event.links
+}
+
 // list all events, with search too
 router.get('/', async (req, res) => {
 
@@ -131,7 +147,7 @@ router.get('/', async (req, res) => {
 	// Select needed fields
 	eventsQuery
 		.distinct('event.id')
-		.select(['event.name', 'event.slug', 'event.date', 'event.date_end', 'event.links', 'event.location_name', 'event.location_locality', 'event.location_county_state', {location_country_name: 'country.name'}, {location_country_code: 'country.code'}, {location_country_code3: 'country.code3'}])
+		.select(eventFields)
 
 	// Order & pagination
 	eventsQuery.orderBy('event.date', 'ASC').offset((pag.page - 1) * pag.perPage).limit(pag.perPage)
@@ -143,18 +159,7 @@ router.get('/', async (req, res) => {
 	let categories = events.length ? await knex('category').select([...categoryFields, 'event_id']).join('event_category', 'event_category.category_id', 'category.id').whereIn('event_id', eventIds) : []
 
 	events = events.map(event => {
-		event.links = JSON.parse(event.links)
-
-		event.location_country = {
-			name:	event.location_country_name,
-			code:	event.location_country_code,
-			code3:	event.location_country_code3
-		}
-
-		delete event.location_country_name
-		delete event.location_country_code
-		delete event.location_country_code3
-
+		event.links = processEventLinks(event)
 		event.categories = categories.filter(category => category.event_id === event.id)
 		event.races = races.filter(race => race.event_id === event.id)
 
@@ -420,6 +425,40 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 
 	console.log('[EVENTS - Image Upload] start file upload', req.params)
 	fs.createReadStream(req.file.path).pipe(pipeline)
+})
+
+router.get('/:event', async (req, res) => {
+	let singleEventFields = ['event.id', ...eventFields, 'event.description']
+
+	if (req.query.editing) {
+		singleEventFields.push('event.status', 'event.editor_comment')
+	}
+
+	const event = await knex('event')
+						.select(singleEventFields)
+						.innerJoin('country', 'event.location_country_id', 'country.id')
+						.where('slug', slugify(req.params.event, { lower: true }))
+						.first()
+
+	if (!event) {
+		return res.status(404).json({
+			type:	null,
+			title:	'Not Found',
+		})
+	}
+
+	event.date = moment(event.date).format('YYYY-MM-DD')
+
+	if (req.query.editing) {
+		event.links = JSON.parse(event.links)
+	} else {
+		event.links = processEventLinks(event)
+	}
+
+	event.categories = await knex('category').select(categoryFields).join('event_category', 'event_category.category_id', 'category.id').where('event_id', event.id)
+	event.races = await knex('race').select(raceFields).where('event_id', event.id)
+
+	return res.json(event)
 })
 
 module.exports = router
