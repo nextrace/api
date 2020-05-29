@@ -5,7 +5,7 @@ const fs  = require('fs')
 const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
-const moment = require('moment')
+const moment = require('moment-timezone')
 const { knex, categoryFields, raceFields } = require('../utils.js')
 const querystring = require('querystring')
 const slugify = require('slugify')
@@ -183,7 +183,6 @@ router.get('/', async (req, res) => {
 
 
 // Get a list of countyState for a specific Country
-router.get('/countyState/:country', async (req, res) => {
 router.post('/', async (req, res) => {
 	const country = await knex('country').where('code', req.body.location_country).first()
 
@@ -225,6 +224,100 @@ router.post('/', async (req, res) => {
 })
 
 
+// Get a list of countyState for a specific Country
+router.put('/:id([0-9]+)', async (req, res) => {
+	const event = await knex('event').where('id', req.params.id).first()
+	const country = await knex('country').where('code', req.body.location_country).first()
+
+	// generate meta info for event
+	event.meta = JSON.parse(event.meta)
+	event.meta.races = req.body.races.length
+
+	let category_tags = []
+	let distance_min = false
+	let distance_max = false
+
+	req.body.races.forEach(race => {
+		if (!category_tags.includes(race.category_tag)) {
+			category_tags.push(race.category_tag)
+		}
+
+		if (!distance_min || race.distance < distance_min) {
+			distance_min = race.distance
+		}
+
+		if (!distance_max || race.distance > distance_max) {
+			distance_max = race.distance
+		}
+	})
+
+	// update event in db
+	await knex('event').update({
+		name: req.body.name,
+		date: req.body.date,
+		date_end: req.body.date_end,
+		timezone: req.body.timezone,
+		description: req.body.description,
+		editor_comment: req.body.editor_comment,
+		links: JSON.stringify(req.body.links),
+		location_country_id: country.id,
+		location_county_state: req.body.location_county_state,
+		location_lat_lng: req.body.location_lat_lng,
+		location_locality: req.body.location_locality,
+		location_name: req.body.location_name,
+		location_postal: req.body.location_postal,
+		location_street: req.body.location_street,
+		meta: JSON.stringify(event.meta),
+		category_tags: JSON.stringify(category_tags),
+		distance_min,
+		distance_max,
+	}).where('id', event.id)
+
+	// add or update races in db
+	if (req.body.races && req.body.races.length) {
+		const existingRaceIds = req.body.races.filter(r => 'id' in r).map(r => r.id)
+
+		await knex('race').whereNotIn('id', existingRaceIds).andWhere('event_id', event.id).del()
+		const racesInDb = await knex('race').where('event_id', event.id)
+		let racesToSave = []
+
+		req.body.races.forEach(race => {
+
+			// TODO completely rename 'elevation' to 'ascent'
+			if (race.ascent) {
+				race.elevation = race.ascent
+				delete race.ascent
+			}
+
+			delete race.time
+
+			race.date = moment.tz(race.date, event.timezone).utc().toDate()
+
+			if (race.id) {
+				let raceDb = racesInDb.find(r => r.id == race.id)
+				racesToSave.push(knex('race').update({
+					...raceDb,
+					...race,
+				}).where('id', race.id))
+			} else {
+				racesToSave.push(knex('race').insert({
+					event_id: event.id,
+					meta: '{}',
+					featured: 0,
+					...race,
+				}))
+			}
+		})
+
+		await Promise.all(racesToSave)
+	}
+
+	return res.json(event)
+})
+
+
+// Get a list of countyState for a specific Country
+router.get('/countyState/:country', async (req, res) => {
 	const country = await knex('country').where('code', req.params.country).first()
 
 	const countyStates = await knex('event').select({countyState: 'location_county_state'}).count({ total: 'location_county_state' }).where({

@@ -12,6 +12,7 @@ const apiAuth = (req, res, next) => {
 	if (allowedOrigins.includes(req.get('origin'))) {
 		res.set('Access-Control-Allow-Origin', req.get('origin'))
 		res.set('Access-Control-Allow-Headers', 'content-type')
+		res.set('Access-Control-Allow-Methods', 'GET,POST,HEAD,PUT,DELETE')
 		req.auth = true
 	} else if (req.hostname === 'localhost' || (req.query['serviceToken'] && process.env.SERVICE_TOKEN === req.query.serviceToken)) {
 		req.auth = true
