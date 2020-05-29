@@ -8,6 +8,7 @@ const sharp = require('sharp')
 const moment = require('moment')
 const { knex, categoryFields, raceFields } = require('../utils.js')
 const querystring = require('querystring')
+const slugify = require('slugify')
 
 // data cache
 const cacheCategoryIds = {}
@@ -183,6 +184,46 @@ router.get('/', async (req, res) => {
 
 // Get a list of countyState for a specific Country
 router.get('/countyState/:country', async (req, res) => {
+router.post('/', async (req, res) => {
+	const country = await knex('country').where('code', req.body.location_country).first()
+
+	let event = {
+		name: req.body.name,
+		slug: slugify(req.body.name + '-' + req.body.date.split('-').shift(), { lower: true }),
+		date: req.body.date,
+		date_end: req.body.date_end,
+		timezone: '',
+		status: 'draft',
+		featured: 0,
+		description: req.body.description,
+		editor_comment: req.body.editor_comment,
+		links: JSON.stringify(req.body.links),
+		location_country_id: country.id,
+		location_county_state: req.body.location_county_state,
+		location_lat_lng: req.body.location_lat_lng,
+		location_locality: req.body.location_locality,
+		location_name: req.body.location_name,
+		location_postal: req.body.location_postal,
+		location_street: req.body.location_street,
+		stat_views: 0,
+		stat_impressions: 0,
+		created_by_id: req.body.created_by_id,
+		meta: JSON.stringify({organizers: 0}),
+	}
+
+	const inserted = await knex('event').insert(event, 'id')
+	event.id = inserted[0]
+
+	await knex('event_category').insert(req.body.categories.map(eventCategoryId => {
+		return {
+			event_id: event.id,
+			category_id: eventCategoryId,
+		}
+	}))
+
+	return res.json(event)
+})
+
 
 	const country = await knex('country').where('code', req.params.country).first()
 
