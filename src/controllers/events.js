@@ -394,7 +394,6 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 	const bucket = storage.bucket('cdn.nextrace.cloud')
 
 	const opts = {
-		contentType:	'auto',
 		resumable:		false,
 		metadata:		{
 			cacheControl:	'public, max-age=604800, stale-while-revalidate=43200'
