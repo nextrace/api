@@ -13,9 +13,10 @@ const slugify = require('slugify')
 // data cache
 const cacheCategoryIds = {}
 
-const eventFields = ['event.name', 'event.slug', 'event.date', 'event.date_end', 'event.timezone', 'event.links', 'event.location_name', 'event.location_street', 'event.location_locality', 'event.location_county_state', {location_country: 'country.code'}, {location_country_name: 'country.name'}, 'event.location_lat_lng']
+const eventFields = ['event.name', 'event.slug', 'event.date', 'event.date_end', 'event.timezone', 'event.links', 'event.location_name', 'event.location_street', 'event.location_locality', 'event.location_county_state', {location_country: 'country.code'}, {location_country_name: 'country.name'}, 'event.location_lat_lng', 'event.category_tags']
 
 const processEventLinks = event => {
+	event.category_tags = JSON.parse(event.category_tags)
 	event.links = JSON.parse(event.links)
 
 	for (const link in event.links) {
@@ -45,11 +46,17 @@ router.get('/', async (req, res) => {
 		country:		req.query.country || 'ES',	// only filter avoided to be `all`
 		countyState:	req.query.countyState || 'all',
 		category:		req.query.category || 'all',
+		tag:			req.query.tag || 'all',
 		organizer:		req.query.organizer || 'all',
 		distance:		req.query.distance || 'all',
 		date:			req.query.date || 'all',
 		q:				req.query.q || '',
 		featured:		req.query.featured === '1',
+	}
+
+	// Fix, sometimes the category is sent as `$category_$tag`
+	if (filters.category.includes('_')) {
+		[filters.category, filters.tag] = filters.category.split('_')
 	}
 
 	const pag = {
@@ -86,6 +93,11 @@ router.get('/', async (req, res) => {
 		} else {
 			return res.status(400).json({ message: 'Not a valid category' })
 		}
+	}
+
+	// Category Tag filter
+	if (filters.tag !== 'all') {
+		eventsQuery.andWhere('event.category_tags', 'LIKE', `%${filters.tag}%`)
 	}
 
 	// Organizer filter
