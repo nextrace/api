@@ -6,7 +6,7 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment-timezone')
-const { knex, categoryFields, raceFields } = require('../utils.js')
+const { knex, categoryFields, raceFields, slack } = require('../utils.js')
 const querystring = require('querystring')
 const slugify = require('slugify')
 const {request} = require('gaxios')
@@ -237,6 +237,12 @@ router.post('/', async (req, res) => {
 			category_id: eventCategoryId,
 		}
 	}))
+
+	const person = await knex('user').where('id', req.body.created_by_id).first()
+
+	await slack.send({
+		text:	`🚨 ${person.name} (@${person.handle}) added "${event.name}" event. Review and publish https://nextrace.org/admin/event/${event.slug}`,
+	})
 
 	return res.json(event)
 })
