@@ -9,6 +9,7 @@ const moment = require('moment-timezone')
 const { knex, categoryFields, raceFields } = require('../utils.js')
 const querystring = require('querystring')
 const slugify = require('slugify')
+const {request} = require('gaxios')
 
 // data cache
 const cacheCategoryIds = {}
@@ -435,7 +436,21 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 	})
 
 	console.log('[EVENTS - Image Upload] start file upload', req.params)
-	fs.createReadStream(req.file.path).pipe(pipeline)
+
+	if (req.body.url) {
+		console.log('[EVENTS - Image Upload] by url', req.body.url)
+		request({
+			url: req.body.url,
+			responseType: 'stream',
+		}).then(response => {
+			response.data.pipe(pipeline)
+		})
+	} else if (req.file) {
+		console.log('[EVENTS - Image Upload] by uploaded file', req.file.originalname)
+		fs.createReadStream(req.file.path).pipe(pipeline)
+	} else {
+		return res.status(404).json({ message: 'Invalid image upload' })
+	}
 })
 
 router.get('/:event', async (req, res) => {
