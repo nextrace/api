@@ -110,7 +110,15 @@ router.get('/', async (req, res) => {
 	// Distance filter
 	if (filters.distance !== 'all') {
 		let [min, max] = filters.distance.split(',').map(d => parseInt(d, 10))
-		eventsQuery.andWhere('event.distance_min', '>=', min || 0).andWhere('event.distance_max', '<=', (max || 9999) + .5)
+		min = min || 0
+		max = max || 9999
+
+		eventsQuery.where(q => {
+			q.whereBetween('event.distance_min', [min, max])
+			q.orWhereBetween('event.distance_max', [min, max])
+			//q.where('event.distance_min', '>=', min).andWhere('event.distance_max', '<=', min)
+			//q.orWhere('event.distance_min', '>=', max).andWhere('event.distance_max', '<=', max)
+		})
 	}
 
 	// Date filter
