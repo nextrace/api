@@ -7,6 +7,6 @@ steps:
   args: ['push', 'gcr.io/$PROJECT_ID/nextrace-api']
   # Deploy container image to Cloud Run
 - name: 'gcr.io/cloud-builders/gcloud'
-  args: ['run', 'deploy', 'nextrace-api', '--image', 'gcr.io/$PROJECT_ID/nextrace-api', '--region', 'europe-west1','--platform', 'managed', '--quiet']
+  args: ['run', 'deploy', 'nextrace-api-$BRANCH_NAME', '--image', 'gcr.io/$PROJECT_ID/nextrace-api', '--region', 'europe-west1','--platform', 'managed', '--quiet']
 images:
 - gcr.io/$PROJECT_ID/nextrace-api
