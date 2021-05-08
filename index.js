@@ -3,7 +3,7 @@ const express = require('express')
 
 
 const apiAuth = (req, res, next) => {
-	const allowedOrigins = ['https://nextrace.org', 'http://localhost']
+	const allowedOrigins = ['https://nextrace.org', 'https://nextrace.co', 'http://localhost', 'http://localhost:8080', 'capacitor://localhost']
 	req.auth = false
 
 	// API Key check for registered Apps
@@ -32,6 +32,7 @@ const apiAuth = (req, res, next) => {
 
 // App
 const app = express()
+app.set('port', process.env.PORT || 8080)
 app.use(apiAuth)
 app.use(express.json())
 
@@ -47,6 +48,7 @@ app.use('/organizers', require('./src/controllers/organizers'))
 app.use('/person', require('./src/controllers/person'))
 
 
-app.listen(process.env.PORT || 8080, () => {
-	console.log('Next Race API started')
+app.listen(app.get('port'), () => {
+	const url = `http://localhost:${app.get('port')}`
+	console.log(`Next Race API started at ${url}`)
 })
