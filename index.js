@@ -3,7 +3,7 @@ const express = require('express')
 
 
 const apiAuth = (req, res, next) => {
-	const allowedOrigins = ['https://nextrace.org', 'https://nextrace.co', 'http://localhost', 'http://localhost:8080', 'capacitor://localhost']
+	const allowedOrigins = ['https://nextrace.org', 'https://nextrace.co', 'https://app.nextrace.co', 'http://localhost', 'http://localhost:8080', 'capacitor://localhost', 'https://nextrace-app.pages.dev']
 	req.auth = false
 
 	// API Key check for registered Apps
