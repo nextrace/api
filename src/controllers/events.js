@@ -22,7 +22,7 @@ const processEventLinks = event => {
 
 	for (const link in event.links) {
 		if (event.links[link]) {
-			event.links[link] = `https://api.nextrace.cloud/events/${event.slug}/link/${link}`
+			event.links[link] = `https://api.nextrace.co/events/${event.slug}/link/${link}`
 		} else {
 			delete event.links[link]
 		}
@@ -499,6 +499,25 @@ router.get('/:event', async (req, res) => {
 	event.races = await knex('race').select(raceFields).where('event_id', event.id)
 
 	return res.json(event)
+})
+
+router.get('/:event/link/:link', async (req, res) => {
+
+	const event = await knex('event')
+						.where('slug', req.params.event)
+						.first()
+
+	if (!event) {
+		return res.sendStatus(404)
+	}
+
+	event.links = JSON.parse(event.links)
+
+	if (event.links[req.params.link]) {
+		return res.redirect(event.links[req.params.link])
+	}
+
+	res.sendStatus(404)
 })
 
 module.exports = router

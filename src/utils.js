@@ -37,4 +37,4 @@ exports.knex = knexConn
 exports.slack = new IncomingWebhook(process.env.SLACK_WEBHOOK_URL)
 
 exports.categoryFields = ['id', 'slug', 'name', 'name_short', 'color', 'emoji', 'priority', 'tags']
-exports.raceFields = ['event_id', 'id', 'name', 'category_id', 'category_tag', 'grouping', 'date', 'time_limit', 'distance', {ascent: 'elevation'}, 'max_participants', 'link']
+exports.raceFields = ['event_id', 'id', 'name', 'category_id', 'category_tag', 'grouping', 'date', 'time_limit', 'distance', {ascent: 'elevation'}, 'max_participants', 'link', 'registration_url']
