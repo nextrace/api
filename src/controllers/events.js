@@ -418,7 +418,7 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 		return res.status(401).json('Authentication required')
 	}
 
-	const bucket = storage.bucket('cdn.nextrace.cloud')
+	const bucket = storage.bucket(process.env.STORAGE_BUCKET)
 
 	const opts = {
 		resumable:		false,
