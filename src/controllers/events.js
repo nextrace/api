@@ -6,30 +6,15 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment-timezone')
-const { knex, categoryFields, raceFields, slack } = require('../utils.js')
 const querystring = require('querystring')
 const slugify = require('slugify')
-const {request} = require('gaxios')
+const { request } = require('gaxios')
+
+const { knex, categoryFields, slack } = require('../utils.js')
+const { eventFields, raceFields, processEvent } = require('../actions/events.js')
 
 // data cache
 const cacheCategoryIds = {}
-
-const eventFields = ['event.name', 'event.slug', 'event.date', 'event.date_end', 'event.timezone', 'event.links', 'event.location_name', 'event.location_street', 'event.location_locality', 'event.location_county_state', {location_country: 'country.code'}, {location_country_name: 'country.name'}, 'event.location_lat_lng', 'event.category_tags']
-
-const processEventLinks = event => {
-	event.category_tags = JSON.parse(event.category_tags)
-	event.links = JSON.parse(event.links)
-
-	for (const link in event.links) {
-		if (event.links[link]) {
-			event.links[link] = `https://api.nextrace.co/events/${event.slug}/link/${link}`
-		} else {
-			delete event.links[link]
-		}
-	}
-
-	return event.links
-}
 
 // list all events, with search too
 router.get('/', async (req, res) => {
@@ -39,7 +24,7 @@ router.get('/', async (req, res) => {
 		console.warn('unauthorised request')
 		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
 
-		return res.status(401).json('Authentication required')
+		return res.sendStatus(401)
 	}
 
 	const filters = {
@@ -180,7 +165,7 @@ router.get('/', async (req, res) => {
 	let categories = events.length ? await knex('category').select([...categoryFields, 'event_id']).join('event_category', 'event_category.category_id', 'category.id').whereIn('event_id', eventIds) : []
 
 	events = events.map(event => {
-		event.links = processEventLinks(event)
+		event = processEvent(event)
 		event.categories = categories.filter(category => category.event_id === event.id)
 		event.races = races.filter(race => race.event_id === event.id)
 
@@ -208,7 +193,7 @@ router.get('/', async (req, res) => {
 })
 
 
-// Get a list of countyState for a specific Country
+// create an event
 router.post('/', async (req, res) => {
 	const country = await knex('country').where('code', req.body.location_country).first()
 
@@ -248,7 +233,7 @@ router.post('/', async (req, res) => {
 
 	const person = await knex('user').where('id', req.body.created_by_id).first()
 
-	await slack.send({
+	slack.send({
 		text:	`🚨 ${person.name} (@${person.handle}) added "${event.name}" event. Review and publish https://nextrace.org/admin/event/${event.slug}`,
 	})
 
@@ -256,9 +241,14 @@ router.post('/', async (req, res) => {
 })
 
 
-// Get a list of countyState for a specific Country
+// update an event
 router.put('/:id([0-9]+)', async (req, res) => {
 	const event = await knex('event').where('id', req.params.id).first()
+
+	if (!event) {
+		return res.sendStatus(404)
+	}
+
 	const country = await knex('country').where('code', req.body.location_country).first()
 
 	// generate meta info for event
@@ -367,10 +357,7 @@ router.get('/:event/timeline', async (req, res) => {
 		console.warn('unauthorised request')
 		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
 
-		return res.status(401).json({
-			type: null,
-			title: 'Authentication required',
-		})
+		return res.sendStatus(401)
 	}
 
 	const eventFields = ['id', 'name', 'slug', 'date', 'status', 'previous_event_id']
@@ -408,14 +395,13 @@ router.get('/:event/timeline', async (req, res) => {
 
 
 // upload image for event
-// TODO require auth
 router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) => {
 
 	if (!req.auth) {
 		console.warn('unauthorised request')
 		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
 
-		return res.status(401).json('Authentication required')
+		return res.sendStatus(401)
 	}
 
 	const bucket = storage.bucket(process.env.STORAGE_BUCKET)
@@ -471,30 +457,25 @@ router.get('/:event', async (req, res) => {
 	let singleEventFields = ['event.id', ...eventFields, 'event.description']
 
 	if (req.query.editing) {
+		console.warn(`@deprecated "editing" param, use _mode=edit`)
+		req.query._mode = 'edit'
+	}
+
+	if (req.query._mode === 'edit') {
 		singleEventFields.push('event.status', 'event.editor_comment')
 	}
 
-	const event = await knex('event')
+	let event = await knex('event')
 						.select(singleEventFields)
 						.innerJoin('country', 'event.location_country_id', 'country.id')
 						.where('slug', slugify(req.params.event, { lower: true }))
 						.first()
 
 	if (!event) {
-		return res.status(404).json({
-			type:	null,
-			title:	'Not Found',
-		})
+		return res.sendStatus(404)
 	}
 
-	event.date = moment(event.date).format('YYYY-MM-DD')
-
-	if (req.query.editing) {
-		event.links = JSON.parse(event.links)
-	} else {
-		event.links = processEventLinks(event)
-	}
-
+	event = processEvent(event, req.query._mode)
 	event.categories = await knex('category').select(categoryFields).join('event_category', 'event_category.category_id', 'category.id').where('event_id', event.id)
 	event.races = await knex('race').select(raceFields).where('event_id', event.id)
 
@@ -502,7 +483,6 @@ router.get('/:event', async (req, res) => {
 })
 
 router.get('/:event/link/:link', async (req, res) => {
-
 	const event = await knex('event')
 						.where('slug', req.params.event)
 						.first()
@@ -514,6 +494,7 @@ router.get('/:event/link/:link', async (req, res) => {
 	event.links = JSON.parse(event.links)
 
 	if (event.links[req.params.link]) {
+		// TODO record stats	
 		return res.redirect(event.links[req.params.link])
 	}
 
