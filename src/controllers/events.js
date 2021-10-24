@@ -165,9 +165,9 @@ router.get('/', async (req, res) => {
 	let categories = events.length ? await knex('category').select([...categoryFields, 'event_id']).join('event_category', 'event_category.category_id', 'category.id').whereIn('event_id', eventIds) : []
 
 	events = events.map(event => {
-		event = processEvent(event)
 		event.categories = categories.filter(category => category.event_id === event.id)
 		event.races = races.filter(race => race.event_id === event.id)
+		event = processEvent(event)
 
 		return event
 	})
@@ -475,9 +475,9 @@ router.get('/:event', async (req, res) => {
 		return res.sendStatus(404)
 	}
 
-	event = processEvent(event, req.query._mode)
 	event.categories = await knex('category').select(categoryFields).join('event_category', 'event_category.category_id', 'category.id').where('event_id', event.id)
 	event.races = await knex('race').select(raceFields).where('event_id', event.id)
+	event = processEvent(event, req.query._mode)
 
 	return res.json(event)
 })

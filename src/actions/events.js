@@ -6,7 +6,6 @@ const raceFields = ['event_id', 'id', 'name', 'category_id', 'category_tag', 'gr
 const processEvent = (event, mode) => {
 	event.category_tags = JSON.parse(event.category_tags)
 	event.links = JSON.parse(event.links)
-	event.date = format(event.date, 'yyyy-MM-dd')
 
 	if (mode !== 'edit') {
 		for (const link in event.links) {
@@ -17,6 +16,27 @@ const processEvent = (event, mode) => {
 			}
 		}
 	}
+
+	const startDate = event.races.length ? event.races[0].date : event.date
+	const diff = Math.round((new Date(startDate) - new Date) / 1000)
+
+	if (diff > 0) {
+		event.state = 'upcoming'
+	} else {
+		let timeLimit = 0 // 4h is just a guess
+
+		event.races.forEach(race => {
+			if (race.time_limit && race.time_limit > timeLimit) {
+				timeLimit = race.time_limit
+			}
+		})
+
+		timeLimit = timeLimit || 2
+
+		event.state = diff < timeLimit * -3600 ? 'finished' : 'live'
+	}
+
+	event.date = format(event.date, 'yyyy-MM-dd')
 
 	return event
 }
