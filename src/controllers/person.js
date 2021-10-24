@@ -8,13 +8,13 @@ router.get('/:handle', async (req, res) => {
 	if (!req.auth) {
 		console.warn('unauthorised request')
 		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
-		return res.status(401).json('Authentication required')
+		return res.sendStatus(401)
 	}
 
 	let person = await knex('user').select(['name', 'handle', 'country_code', 'language', 'meta', 'created_at']).where('handle', req.params.handle).first()
 
 	if (!person) {
-		return res.status(404).json('Person not found')
+		return res.sendStatus(404)
 	}
 
 	person.meta = JSON.parse(person.meta)
@@ -33,7 +33,7 @@ router.get('/:handle/race-calendar', async (req, res) => {
 	if (!req.auth) {
 		console.warn('unauthorised request')
 		res.set('WWW-Authenticate', 'Bearer realm="See https://nextrace.org/developers/api-authentication"')
-		return res.status(401).json('Authentication required')
+		return res.sendStatus(401)
 	}
 
 	const page = Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10)			// restrict to max page 10 atm
@@ -43,7 +43,7 @@ router.get('/:handle/race-calendar', async (req, res) => {
 	let user = await knex('user').where('handle', req.params.handle).first()
 
 	if (!user) {
-		return res.status(404).json('Person not found')
+		return res.sendStatus(404)
 	}
 
 	const eventFields = [
