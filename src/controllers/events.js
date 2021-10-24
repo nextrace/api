@@ -482,6 +482,18 @@ router.get('/:event', async (req, res) => {
 	return res.json(event)
 })
 
+router.get('/:event/people', async (req, res) => {
+	let event = await knex('event').where('slug', req.params.event).first()
+
+	if (!event) {
+		return res.sendStatus(404)
+	}
+
+	const people = await knex('event_person').where('event_id', event.id)
+
+	return res.json(people)
+})
+
 router.get('/:event/link/:link', async (req, res) => {
 	const event = await knex('event')
 						.where('slug', req.params.event)

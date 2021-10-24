@@ -46,6 +46,7 @@ app.use('/countries', require('./src/controllers/countries'))
 app.use('/events', require('./src/controllers/events'))
 app.use('/organizers', require('./src/controllers/organizers'))
 app.use('/person', require('./src/controllers/person'))
+app.use('/people', require('./src/controllers/people'))
 
 
 app.listen(app.get('port'), () => {
