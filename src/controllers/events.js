@@ -435,10 +435,10 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 		res.json('done')
 	})
 
-	console.log('[EVENTS - Image Upload] start file upload', req.params)
+	console.log('[EVENTS - Image Upload]', `start file upload to ${process.env.STORAGE_BUCKET}`, req.params)
 
 	if (req.body.url) {
-		console.log('[EVENTS - Image Upload] by url', req.body.url)
+		console.log('[EVENTS - Image Upload] from url', req.body.url)
 		request({
 			url: req.body.url,
 			responseType: 'stream',
@@ -446,7 +446,7 @@ router.post('/:eventId/uploadImage', upload.single('image'), async (req, res) =>
 			response.data.pipe(pipeline)
 		})
 	} else if (req.file) {
-		console.log('[EVENTS - Image Upload] by uploaded file', req.file.originalname)
+		console.log('[EVENTS - Image Upload] from uploaded file', req.file.originalname)
 		fs.createReadStream(req.file.path).pipe(pipeline)
 	} else {
 		return res.status(404).json({ message: 'Invalid image upload' })
