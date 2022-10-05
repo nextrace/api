@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
 	}
 
 	const filters = {
-		status:			'public',
+		status:			req.query.status || 'public',
 		country:		req.query.country || 'ES',	// only filter avoided to be `all`
 		countyState:	req.query.countyState || 'all',
 		category:		req.query.category || 'all',
@@ -55,7 +55,7 @@ router.get('/', async (req, res) => {
 	const eventsQuery = knex('event')
 						.innerJoin('country', 'event.location_country_id', 'country.id')
 						.innerJoin('event_category', 'event.id', 'event_category.event_id')
-						.where('event.status', filters.status)
+						.whereIn('event.status', filters.status.split(','))
 
 	// Country filter
 	if (filters.country !== 'all') {
@@ -305,7 +305,7 @@ router.put('/:id([0-9]+)', async (req, res) => {
 
 		req.body.races.forEach(race => {
 
-			// TODO completely rename 'elevation' to 'ascent'
+			//todo completely rename 'elevation' to 'ascent'
 			if (race.ascent) {
 				race.elevation = race.ascent
 				delete race.ascent
