@@ -1,6 +1,8 @@
 const knex = require('knex')
 const { IncomingWebhook } = require('@slack/webhook')
 
+const env = process.env.NODE_ENV || 'dev'
+
 const knexConn = knex({
 	client: 'mysql',
 	connection: process.env.DATABASE_URL,
@@ -16,7 +18,7 @@ const knexConn = knex({
 
 
 // debug SQL queries
-if (process.env.NODE_ENV || 'dev' === 'dev') {
+if (env === 'dev') {
 	let queries = {}
 
 	knexConn.on('query', (query) => {
