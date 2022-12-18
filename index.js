@@ -3,7 +3,7 @@ const express = require('express')
 
 
 const apiAuth = (req, res, next) => {
-	const allowedOrigins = ['https://nextrace.co', 'https://app.nextrace.co', 'http://localhost', 'http://localhost:3000', 'http://localhost:8080', 'capacitor://localhost', 'https://nextrace-app.pages.dev', 'http://nextrace.test']
+	const allowedOrigins = ['https://nextrace.co', 'https://app.nextrace.co', 'http://localhost', 'http://localhost:3000', 'http://localhost:8080', 'capacitor://localhost', 'https://nextrace-app.pages.dev', 'http://nextrace.test', 'https://trailrunningacademy.com']
 	req.auth = false
 
 	// API Key check for registered Apps
@@ -47,6 +47,7 @@ app.use('/events', require('./src/controllers/events'))
 app.use('/organizers', require('./src/controllers/organizers'))
 app.use('/person', require('./src/controllers/person'))
 app.use('/people', require('./src/controllers/people'))
+app.use('/ask-kilian', require('./src/controllers/bot'))
 
 
 app.listen(app.get('port'), () => {
