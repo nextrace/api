@@ -32,6 +32,7 @@ const apiAuth = (req, res, next) => {
 
 // App
 const app = express()
+app.set('trust proxy', true)
 app.set('port', process.env.PORT || 8080)
 app.use(apiAuth)
 app.use(express.json())
