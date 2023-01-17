@@ -47,7 +47,6 @@ router.get('/', async (req, res) => {
 
 	const pag = {
 		total:		0,
-		pages:		0,
 		page:		Math.min(Math.max(parseInt(req.query.page) || 1, 1), 10),		// restrict to max page 10 atm
 		perPage:	Math.min(Math.max(parseInt(req.query.perPage) || 50, 5), 100),	// max 100 results
 	}
@@ -129,6 +128,8 @@ router.get('/', async (req, res) => {
 		if (moment(dateEnd).isValid()) {
 			eventsQuery.andWhere('event.date', '<=', moment(dateEnd).format())
 		}
+	} else if (filters.date === 'all-organizer') {
+		
 	} else {
 		eventsQuery.andWhere('event.date', '>=', moment().subtract(2, 'days').format())
 	}
@@ -148,15 +149,16 @@ router.get('/', async (req, res) => {
 	// Query total number of events
 	const totalQuery = eventsQuery.clone().count({ total: 'event.id' }).first()
 	pag.total = (await totalQuery).total
-	pag.pages = Math.ceil(pag.total / pag.perPage)
 
 	// Select needed fields
 	eventsQuery
 		.distinct('event.id')
 		.select(eventFields)
 
+	const order = req.query.order && ['asc', 'desc'].includes(req.query.order) ? req.query.order : 'asc'
+
 	// Order & pagination
-	eventsQuery.orderBy('event.date', 'ASC').offset((pag.page - 1) * pag.perPage).limit(pag.perPage)
+	eventsQuery.orderBy('event.date', order).offset((pag.page - 1) * pag.perPage).limit(pag.perPage)
 
 	// Get events & related data
 	let events = await eventsQuery
@@ -172,24 +174,10 @@ router.get('/', async (req, res) => {
 		return event
 	})
 
-	// build Links
-	const links = {
-		self:	`/events?${querystring.stringify({ ...req.query, ...{perPage: pag.perPage, page: pag.page} })}`,
-	}
-
-	if (pag.page > 1) {
-		links.prev = `/events?${querystring.stringify({ ...req.query, ...{perPage: pag.perPage, page: pag.page - 1} })}`
-	}
-
-	if (pag.page < pag.pages) {
-		links.next = `/events?${querystring.stringify({ ...req.query, ...{perPage: pag.perPage, page: pag.page + 1} })}`
-		links.last = `/events?${querystring.stringify({ ...req.query, ...{perPage: pag.perPage, page: pag.pages} })}`
-	}
-
 	return res.set({
 		'Cache-Control':	'public, max-age=7200',
 		'X-Total': 			pag.total,
-	}).links(links).json(events)
+	}).json(events)
 })
 
 
