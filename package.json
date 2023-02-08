@@ -26,12 +26,14 @@
     "express": "^4.17.1",
     "knex": "^0.95.10",
     "lodash": "^4.17.20",
+    "meilisearch": "^0.31.1",
     "moment": "^2.29.1",
     "moment-timezone": "^0.5.31",
     "multer": "^1.4.2",
     "mysql": "^2.18.1",
     "openai": "^3.1.0",
     "sharp": "^0.29.2",
-    "slugify": "^1.4.5"
+    "slugify": "^1.4.5",
+    "ua-parser-js": "^1.0.32"
   }
 }

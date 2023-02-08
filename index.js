@@ -1,6 +1,7 @@
 require('dotenv').config({ path: './.env' })
 const express = require('express')
 
+const { indexEvents, indexOrganizers, indexPeople } = require('./src/actions/search.js')
 
 const apiAuth = (req, res, next) => {
 	const allowedOrigins = ['https://nextrace.co', 'https://app.nextrace.co', 'http://localhost', 'http://localhost:3000', 'http://localhost:8080', 'capacitor://localhost', 'https://nextrace-app.pages.dev', 'http://nextrace.test', 'https://trailrunningacademy.com']
@@ -39,6 +40,19 @@ app.use(express.json())
 
 app.get('/', (req, res) => {
 	res.json('NextRace APIs')
+})
+
+app.get('/search-index', async (req, res) => {
+
+	const people = await indexPeople()
+	const events = await indexEvents()
+	const organizers = await indexOrganizers()
+
+	return res.json([
+		`Sent ${people.length} people to search db`,
+		`Sent ${events.length} events to search db`,
+		`Sent ${organizers.length} organizers to search db`,
+	])
 })
 
 app.use('/analytics', require('./src/controllers/analytics'))

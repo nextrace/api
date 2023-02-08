@@ -1,5 +1,6 @@
 const knex = require('knex')
 const { IncomingWebhook } = require('@slack/webhook')
+const { MeiliSearch } = require('meilisearch')
 
 const env = process.env.NODE_ENV || 'dev'
 
@@ -15,7 +16,6 @@ const knexConn = knex({
 		}
 	},
 })
-
 
 // debug SQL queries
 if (env === 'dev') {
@@ -34,8 +34,12 @@ if (env === 'dev') {
 	})
 }
 
-
 exports.knex = knexConn
 exports.slack = new IncomingWebhook(process.env.SLACK_WEBHOOK_URL)
 
 exports.categoryFields = ['id', 'slug', 'name', 'name_short', 'color', 'emoji', 'priority', 'tags']
+
+exports.meilisearch = new MeiliSearch({
+  host: process.env.MEILI_HOST || 'http://127.0.0.1:7700',
+  apiKey: process.env.MEILI_KEY || 'masterKey',
+})
