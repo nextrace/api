@@ -8,7 +8,6 @@ const indexPeople = async (limit = 100) => {
 	console.log('[search index]', `start db query for ${limit} people`)
 	let people = await knex('user')
 						.where('search_indexed', 0)
-						.whereIn('status', ['public', 'private'])
 						.where('meta', 'not like', '%new-email%') // exclude accounts with unverified email
 						.limit(limit)
 
