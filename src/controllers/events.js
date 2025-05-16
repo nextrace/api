@@ -6,12 +6,13 @@ const multer  = require('multer')
 const upload = multer({ dest: '/tmp/' })
 const sharp = require('sharp')
 const moment = require('moment-timezone')
-const querystring = require('querystring')
 const slugify = require('slugify')
 const { request } = require('gaxios')
+const axios = require('axios')
 
 const { knex, categoryFields, slack } = require('../utils.js')
 const { eventFields, raceFields, processEvent } = require('../actions/events.js')
+const { openai } = require('../lib/ai.js')
 
 // data cache
 const cacheCategoryIds = {}
@@ -178,6 +179,39 @@ router.get('/', async (req, res) => {
 		'Cache-Control':	'public, max-age=7200',
 		'X-Total': 			pag.total,
 	}).json(events)
+})
+
+
+router.get('/import-from-website', async (req, res) => {
+	const url = req.query.url
+
+	if (!URL.canParse(url)) {
+		return res.status(400).json({
+			code: 'event_invalid_website_url',
+			message: 'Event website is invalid'
+		})
+	}
+
+	const website = await axios.get(url, { responseType: 'text' })
+
+	const content = `I have this website page for a sports events:\n
+<website>${website.data}</website>\n
+Help me extract event data in JSON format. Data I need:
+- event name
+- event date & time
+- event location
+- invidivual races: name, distance, price
+`
+
+	const chatCompletion = await openai.chat.completions.create({
+		messages: [{
+			role: 'user',
+			content
+		}],
+		model: 'gpt-4-1106-preview',
+	});
+
+	return res.json(chatCompletion)
 })
 
 

@@ -1,12 +1,12 @@
 const router = require('express').Router()
-const { Configuration, OpenAIApi } = require("openai")
+const { uniq } = require('lodash')
+const OpenAI = require("openai")
+const axios = require('axios')
+const UAparser = require('ua-parser-js')
 
 const { knex } = require('../utils.js')
 
-const openaiConfig = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(openaiConfig);
+const openai = new OpenAI();
 
 // kilian bot
 router.post('/', async (req, res) => {
@@ -58,6 +58,33 @@ router.post('/', async (req, res) => {
 	}
 
 	return res.json({ question, answer })
+})
+
+router.get('/fill-infos', async (req, res) => {
+	const answers = await knex('coach_answers').whereNull('ip_info').limit(5)
+
+	while (answers.length) {
+		const answer = answers.pop()
+
+		const { data } = await axios(`https://ipinfo.io/${answer.ip}?token=7b43d163b6da95`)
+
+		const ua = UAparser(answer.from_useragent)
+
+		const toUpdate = {
+			ip_location: data.bogon ? '-' : uniq([data.country, data.region, data.city].filter(Boolean)).join(', '),
+			ip_info: JSON.stringify(data),
+			ua_text: [ua.device.vendor, ua.device.model, ua.browser.name, ua.os.name].filter(Boolean).join(' / ')
+		}
+
+		//console.log(data)
+		//console.log(ua)
+
+		await knex('coach_answers').update(toUpdate).where('id', answer.id)
+
+		//console.log(toUpdate)
+	}
+
+	return res.json('done')
 })
 
 module.exports = router

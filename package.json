@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon"
+    "dev": "node --watch --env-file=.env index.js"
   },
   "repository": {
     "type": "git",
@@ -20,9 +20,8 @@
   "dependencies": {
     "@google-cloud/pubsub": "^2.5.0",
     "@google-cloud/storage": "^5.3.0",
-    "@slack/webhook": "^5.0.3",
-    "date-fns": "^2.23.0",
-    "dotenv": "^10.0.0",
+    "@slack/webhook": "^7.0.2",
+    "date-fns": "^3.2.0",
     "express": "^4.17.1",
     "knex": "^0.95.10",
     "lodash": "^4.17.20",
@@ -31,7 +30,7 @@
     "moment-timezone": "^0.5.31",
     "multer": "^1.4.2",
     "mysql": "^2.18.1",
-    "openai": "^3.1.0",
+    "openai": "^4.24.7",
     "sharp": "^0.29.2",
     "slugify": "^1.4.5",
     "ua-parser-js": "^1.0.32"
